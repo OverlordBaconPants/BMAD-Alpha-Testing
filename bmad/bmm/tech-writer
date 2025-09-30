@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# Tech Writer Agent CLI
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+case "$1" in
+    readme)
+        shift
+        "$SCRIPT_DIR/.commands/generate-readme.sh" "$@"
+        ;;
+    api)
+        shift
+        "$SCRIPT_DIR/.commands/generate-api-docs.sh" "$@"
+        ;;
+    analyze)
+        shift
+        "$SCRIPT_DIR/.commands/analyze-project.sh" "$@"
+        ;;
+    validate)
+        shift
+        "$SCRIPT_DIR/.commands/validate-docs.sh" "$@"
+        ;;
+    help|--help|-h)
+        echo "Tech Writer Agent (Yvonne) - Documentation Automation"
+        echo ""
+        echo "Usage: tech-writer <command> [options]"
+        echo ""
+        echo "Commands:"
+        echo "  readme [path]     Generate README documentation"
+        echo "  api [path]        Generate API documentation"
+        echo "  analyze [path]    Analyze project structure"
+        echo "  validate [doc]    Validate documentation"
+        echo "  help             Show this help message"
+        echo ""
+        echo "Examples:"
+        echo "  tech-writer readme /my/project"
+        echo "  tech-writer api --openapi swagger.yaml"
+        echo "  tech-writer validate README.md"
+        ;;
+    *)
+        echo "❌ Unknown command: $1"
+        echo "Run 'tech-writer help' for usage information"
+        exit 1
+        ;;
+esac

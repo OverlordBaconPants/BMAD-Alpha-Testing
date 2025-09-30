@@ -1,0 +1,395 @@
+name: generate-readme
+description: Generate comprehensive README documentation for any project
+version: 1.0.0
+author: Tech Writer Agent Yvonne
+tags: [documentation, readme, automation]
+
+inputs:
+  required:
+    project_root:
+      type: path
+      description: Root directory of the project to document
+      default: "{current_directory}"
+
+    output_folder:
+      type: path
+      description: Where to save the generated README
+      default: "{project_root}"
+
+  optional:
+    project_name:
+      type: string
+      description: Project display name
+      prompt: "What is the name of your project?"
+
+    description:
+      type: string
+      description: Brief project description
+      prompt: "Provide a brief description of your project"
+
+    reading_level:
+      type: integer
+      description: Target reading grade level
+      default: 8
+      min: 6
+      max: 12
+
+    include_badges:
+      type: boolean
+      description: Include status badges (build, coverage, etc.)
+      default: true
+
+    include_diagrams:
+      type: boolean
+      description: Generate and include architecture diagrams
+      default: true
+
+    custom_sections:
+      type: object
+      description: Additional sections to include
+      example:
+        deployment: "Deployment instructions"
+        security: "Security considerations"
+
+outputs:
+  readme_path:
+    type: path
+    description: Path to generated README.md
+
+  validation_report:
+    type: object
+    description: Quality validation results
+
+  generation_time:
+    type: number
+    description: Time taken to generate in seconds
+
+phases:
+  - name: Analysis
+    description: Analyze project structure and content
+    steps:
+      - id: scan_codebase
+        task: analyze-code
+        config:
+          project_root: "{inputs.project_root}"
+          extract:
+            - languages
+            - frameworks
+            - entry_points
+            - api_endpoints
+            - dependencies
+            - test_coverage
+
+      - id: detect_project_type
+        task: classify-project
+        input: "{steps.scan_codebase.output}"
+        rules:
+          - if: frameworks contains "fastapi" or "express"
+            then: type = "api"
+          - if: frameworks contains "react" or "vue"
+            then: type = "frontend"
+          - if: exists "Dockerfile" or "docker-compose"
+            then: add_feature = "containerized"
+
+      - id: discover_documentation
+        task: find-existing-docs
+        config:
+          patterns:
+            - "*.md"
+            - "docs/**/*"
+            - "CONTRIBUTING*"
+            - "LICENSE*"
+
+  - name: Content Generation
+    description: Generate README content sections
+    steps:
+      - id: generate_header
+        task: template-render
+        template: |
+          # {project_name}
+
+          {{#if include_badges}}
+          ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
+          ![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)
+          ![License](https://img.shields.io/badge/license-MIT-blue)
+          {{/if}}
+
+          {description}
+
+      - id: generate_overview
+        task: create-section
+        config:
+          title: "## Overview"
+          content_from: analysis
+          include:
+            - project_purpose
+            - key_features
+            - technology_stack
+          reading_level: "{inputs.reading_level}"
+
+      - id: generate_features
+        task: create-feature-list
+        config:
+          title: "## Features"
+          source: "{steps.scan_codebase.output}"
+          format: bullet_list
+          auto_discover: true
+          categories:
+            - core
+            - api
+            - ui
+            - performance
+
+      - id: generate_installation
+        task: create-installation-guide
+        config:
+          title: "## Installation"
+          detect:
+            - package_managers
+            - system_requirements
+            - dependencies
+          formats:
+            - quick_start
+            - detailed
+            - docker
+
+      - id: generate_usage
+        task: create-usage-examples
+        config:
+          title: "## Usage"
+          discover_from:
+            - entry_points
+            - api_endpoints
+            - cli_commands
+          include_code: true
+          languages: "{steps.scan_codebase.output.languages}"
+
+      - id: generate_api_reference
+        task: create-api-summary
+        condition: "{steps.detect_project_type.output.type} == 'api'"
+        config:
+          title: "## API Reference"
+          endpoints: "{steps.scan_codebase.output.api_endpoints}"
+          format: table
+          include_examples: true
+
+      - id: generate_project_structure
+        task: create-structure-tree
+        config:
+          title: "## Project Structure"
+          max_depth: 3
+          ignore:
+            - node_modules
+            - __pycache__
+            - .git
+          highlight_important: true
+
+      - id: generate_configuration
+        task: document-configuration
+        config:
+          title: "## Configuration"
+          discover:
+            - env_variables
+            - config_files
+            - settings
+          format: table
+
+      - id: generate_testing
+        task: document-testing
+        config:
+          title: "## Testing"
+          discover:
+            - test_framework
+            - test_commands
+            - coverage_reports
+          include_examples: true
+
+      - id: generate_contributing
+        task: create-contributing-section
+        config:
+          title: "## Contributing"
+          check_existing: "CONTRIBUTING.md"
+          default_template: standard
+          include:
+            - code_of_conduct
+            - pull_request_process
+            - coding_standards
+
+      - id: generate_license
+        task: create-license-section
+        config:
+          title: "## License"
+          detect_from:
+            - LICENSE
+            - LICENSE.md
+            - LICENSE.txt
+            - package.json
+          default: MIT
+
+      - id: generate_contact
+        task: create-contact-section
+        config:
+          title: "## Contact & Support"
+          discover:
+            - git_repo
+            - issue_tracker
+            - documentation
+          include_authors: true
+
+  - name: Diagram Generation
+    description: Create visual documentation
+    condition: "{inputs.include_diagrams}"
+    steps:
+      - id: generate_architecture_diagram
+        task: create-diagram
+        config:
+          type: c4_context
+          title: "### System Architecture"
+          source: "{steps.scan_codebase.output}"
+          format: mermaid
+
+      - id: generate_data_flow
+        task: create-diagram
+        config:
+          type: data_flow
+          title: "### Data Flow"
+          discover: true
+          simplify: true
+
+  - name: Assembly
+    description: Combine all sections into final README
+    steps:
+      - id: combine_sections
+        task: assemble-document
+        config:
+          sections:
+            - "{steps.generate_header.output}"
+            - "{steps.generate_overview.output}"
+            - "{steps.generate_features.output}"
+            - "{steps.generate_installation.output}"
+            - "{steps.generate_usage.output}"
+            - "{steps.generate_api_reference.output}"
+            - "{steps.generate_project_structure.output}"
+            - "{steps.generate_configuration.output}"
+            - "{steps.generate_testing.output}"
+            - "{steps.generate_contributing.output}"
+            - "{steps.generate_license.output}"
+            - "{steps.generate_contact.output}"
+          custom_sections: "{inputs.custom_sections}"
+          add_toc: true
+          add_timestamp: true
+
+      - id: adjust_reading_level
+        task: simplify-content
+        config:
+          target_level: "{inputs.reading_level}"
+          preserve:
+            - code_blocks
+            - technical_terms
+            - api_references
+
+  - name: Validation
+    description: Validate generated README
+    steps:
+      - id: validate_content
+        task: validate-document
+        config:
+          document: "{steps.combine_sections.output}"
+          checks:
+            - completeness
+            - link_validity
+            - code_syntax
+            - reading_level
+            - format_compliance
+
+      - id: generate_report
+        task: create-validation-report
+        config:
+          results: "{steps.validate_content.output}"
+          format: summary
+          include_recommendations: true
+
+  - name: Output
+    description: Save README and report
+    steps:
+      - id: save_readme
+        task: save-file
+        config:
+          content: "{steps.combine_sections.output}"
+          path: "{inputs.output_folder}/README.md"
+          backup_existing: true
+
+      - id: save_report
+        task: save-file
+        config:
+          content: "{steps.generate_report.output}"
+          path: "{inputs.output_folder}/.readme-validation.json"
+
+      - id: display_summary
+        task: show-summary
+        config:
+          message: |
+            ✅ README Generated Successfully!
+
+            📄 File: {steps.save_readme.output.path}
+            📊 Quality Score: {steps.validate_content.output.score}%
+            📖 Reading Level: Grade {steps.validate_content.output.reading_level}
+            ⏱️ Generation Time: {elapsed_time}s
+
+            {steps.generate_report.output.summary}
+
+hooks:
+  pre_execution:
+    - validate_project_exists
+    - check_permissions
+
+  post_section:
+    - log_progress
+    - update_cache
+
+  on_error:
+    - log_error
+    - suggest_fixes
+    - save_partial_output
+
+  on_success:
+    - notify_completion
+    - update_metrics
+
+error_handling:
+  missing_project_info:
+    action: prompt_user
+    fallback: use_defaults
+
+  analysis_failure:
+    action: use_simple_template
+    message: "Using simplified README template"
+
+  validation_failure:
+    action: save_anyway
+    message: "README saved with validation warnings"
+
+performance:
+  cache:
+    enabled: true
+    ttl: 3600
+    key: "{project_root}_analysis"
+
+  parallel:
+    enabled: true
+    max_workers: 4
+    phases: [Analysis, "Content Generation"]
+
+  timeout:
+    total: 30
+    per_step: 10
+
+metrics:
+  track:
+    - generation_time
+    - sections_generated
+    - quality_score
+    - reading_level
+    - file_size
+
+  report_to: bmad/metrics/documentation

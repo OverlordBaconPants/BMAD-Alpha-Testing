@@ -1,0 +1,527 @@
+name: generate-report
+version: "1.0.0"
+description: Generate comprehensive RVTM coverage and traceability reports
+category: rvtm
+phase: reporting
+tags:
+  - reporting
+  - coverage
+  - metrics
+  - compliance
+
+inputs:
+  project_root:
+    type: string
+    description: Root directory of the project
+    required: true
+    default: "."
+
+  report_type:
+    type: string
+    description: Type of report to generate
+    required: false
+    default: "full"
+    enum:
+      - full
+      - summary
+      - executive
+      - compliance
+      - gaps
+      - risks
+
+  format:
+    type: string
+    description: Output format for the report
+    required: false
+    default: "markdown"
+    enum:
+      - markdown
+      - json
+      - html
+      - pdf
+
+  include_sections:
+    type: array
+    description: Sections to include in the report
+    required: false
+    default:
+      - summary
+      - coverage
+      - traceability
+      - gaps
+      - risks
+      - recommendations
+
+  output_path:
+    type: string
+    description: Custom output path for report
+    required: false
+
+  email_recipients:
+    type: array
+    description: Email addresses to send report to
+    required: false
+
+outputs:
+  report_path:
+    type: string
+    description: Path to generated report
+
+  coverage_percentage:
+    type: number
+    description: Current coverage percentage
+
+  total_requirements:
+    type: number
+    description: Total number of requirements
+
+  critical_gaps:
+    type: number
+    description: Number of critical coverage gaps
+
+  high_risks:
+    type: number
+    description: Number of high severity risks
+
+  status:
+    type: string
+    description: Overall RVTM status
+
+steps:
+  - id: verify_rvtm
+    name: Verify RVTM exists
+    type: shell
+    command: |
+      if [ ! -d ".rvtm" ]; then
+        echo "❌ RVTM not initialized. Run 'bmad rvtm init' first."
+        exit 1
+      fi
+
+      echo "✅ RVTM found at .rvtm"
+    continue_on_error: false
+
+  - id: calculate_metrics
+    name: Calculate current metrics
+    type: node
+    script: |
+      const RVTMManager = require('../../../core/lib/rvtm/rvtm-manager');
+      const CoverageCalculator = require('../../../core/lib/rvtm/coverage-calculator');
+
+      const manager = new RVTMManager(inputs.project_root);
+      await manager.loadMatrix();
+
+      const calculator = new CoverageCalculator(manager);
+      const coverage = await calculator.calculateCoverage();
+      const summary = await calculator.generateCoverageSummary();
+
+      outputs.coverage_percentage = coverage.coverage_percentage;
+      outputs.total_requirements = coverage.total_requirements;
+      outputs.critical_gaps = summary.health.critical_gaps;
+      outputs.high_risks = summary.health.high_risks;
+      outputs.status = summary.status;
+
+      console.log('📊 Current Metrics:');
+      console.log(`  Total Requirements: ${coverage.total_requirements}`);
+      console.log(`  Coverage: ${coverage.coverage_percentage}%`);
+      console.log(`  Status: ${summary.status}`);
+    dependencies:
+      - verify_rvtm
+
+  - id: generate_report_content
+    name: Generate report content
+    type: node
+    script: |
+      const RVTMManager = require('../../../core/lib/rvtm/rvtm-manager');
+      const ReportGenerator = require('../../../core/lib/rvtm/report-generator');
+      const CoverageCalculator = require('../../../core/lib/rvtm/coverage-calculator');
+
+      const manager = new RVTMManager(inputs.project_root);
+      await manager.loadMatrix();
+
+      const reportGen = new ReportGenerator(manager);
+      const calculator = new CoverageCalculator(manager);
+
+      let reportContent = '';
+
+      switch (inputs.report_type) {
+        case 'summary':
+          reportContent = await generateSummaryReport(manager, calculator);
+          break;
+
+        case 'executive':
+          reportContent = await generateExecutiveReport(manager, calculator, reportGen);
+          break;
+
+        case 'compliance':
+          reportContent = await generateComplianceReport(manager, calculator);
+          break;
+
+        case 'gaps':
+          reportContent = await generateGapsReport(manager, calculator);
+          break;
+
+        case 'risks':
+          reportContent = await generateRisksReport(manager, calculator);
+          break;
+
+        case 'full':
+        default:
+          const options = {
+            includeCoverage: inputs.include_sections.includes('coverage'),
+            highlightGaps: inputs.include_sections.includes('gaps')
+          };
+          reportContent = await reportGen.generateReport(options);
+          break;
+      }
+
+      // Store report content for next step
+      global.reportContent = reportContent;
+      console.log(`✅ Generated ${inputs.report_type} report`);
+
+      // Helper functions for specific report types
+      async function generateSummaryReport(manager, calculator) {
+        const coverage = await calculator.calculateCoverage();
+        const summary = await calculator.generateCoverageSummary();
+
+        return `# RVTM Summary Report
+
+Generated: ${new Date().toISOString()}
+
+## Quick Stats
+- **Total Requirements:** ${coverage.total_requirements}
+- **Coverage:** ${coverage.coverage_percentage}%
+- **Verification:** ${coverage.verification_percentage}%
+- **Status:** ${summary.status}
+
+## Health Check
+- Orphaned Tests: ${summary.health.orphaned_tests}
+- Uncovered Requirements: ${summary.health.uncovered_requirements}
+- Critical Gaps: ${summary.health.critical_gaps}
+- High Risks: ${summary.health.high_risks}
+
+## Recommendation
+${summary.recommendation}
+`;
+      }
+
+      async function generateExecutiveReport(manager, calculator, reportGen) {
+        const coverage = await calculator.calculateCoverage();
+        const matrix = await manager.getMatrix();
+
+        let report = `# Executive RVTM Report
+
+Generated: ${new Date().toISOString()}
+
+## Executive Summary
+
+The Requirements Verification Traceability Matrix (RVTM) provides comprehensive tracking of requirement implementation and verification status across the project.
+
+### Key Metrics
+- **Requirements Coverage:** ${coverage.coverage_percentage}%
+- **Implementation Progress:** ${coverage.implementation_percentage}%
+- **Verification Status:** ${coverage.verification_percentage}%
+
+### Project Health
+`;
+
+        const status = calculator.determineCoverageStatus(coverage);
+        if (status === 'excellent') {
+          report += '✅ **EXCELLENT** - All critical requirements are covered and verified.\n';
+        } else if (status === 'good') {
+          report += '🟢 **GOOD** - Most requirements are covered with minor gaps.\n';
+        } else if (status === 'acceptable') {
+          report += '🟡 **ACCEPTABLE** - Adequate coverage but improvement needed.\n';
+        } else {
+          report += '🔴 **CRITICAL** - Significant coverage gaps requiring immediate attention.\n';
+        }
+
+        // Add critical items
+        const criticalUncovered = coverage.gaps.filter(g => g.priority === 'critical');
+        if (criticalUncovered.length > 0) {
+          report += `\n### ⚠️ Critical Attention Required\n`;
+          report += `${criticalUncovered.length} critical requirements lack coverage:\n`;
+          for (const gap of criticalUncovered.slice(0, 3)) {
+            report += `- ${gap.requirement_id}: ${gap.text}\n`;
+          }
+        }
+
+        return report;
+      }
+
+      async function generateComplianceReport(manager, calculator) {
+        const coverage = await calculator.calculateCoverage();
+        const matrix = await manager.getMatrix();
+        const validation = await calculator.validateCoverage();
+
+        return `# Compliance Report - RVTM
+
+Generated: ${new Date().toISOString()}
+
+## Compliance Status
+${validation.passed ? '✅ **COMPLIANT**' : '❌ **NON-COMPLIANT**'}
+
+## Coverage Requirements
+- **Required Threshold:** ${validation.threshold}%
+- **Actual Coverage:** ${validation.actual}%
+- **Status:** ${validation.message}
+
+## Traceability Audit
+
+### Requirements Traceability
+- Total Requirements: ${coverage.total_requirements}
+- With Implementation: ${coverage.implemented_requirements}
+- With Tests: ${coverage.tested_requirements}
+- Fully Verified: ${coverage.verified_requirements}
+
+### Audit Trail
+- Matrix Version: ${matrix.version}
+- Last Modified: ${matrix.lastModified}
+- Total Trace Links: ${matrix.links.length}
+
+## Compliance Checklist
+- [${coverage.coverage_percentage >= 70 ? 'x' : ' '}] Minimum 70% test coverage
+- [${coverage.coverage_percentage >= 90 ? 'x' : ' '}] Target 90% test coverage
+- [${coverage.gaps.filter(g => g.priority === 'critical').length === 0 ? 'x' : ' '}] All critical requirements covered
+- [${validation.passed ? 'x' : ' '}] Meets configured thresholds
+
+## Certification
+This report certifies the current state of requirements traceability and test coverage as of the generation timestamp.
+`;
+      }
+
+      async function generateGapsReport(manager, calculator) {
+        const uncovered = await calculator.findUncoveredRequirements();
+        const orphaned = await calculator.findOrphanedTests();
+
+        let report = `# Coverage Gaps Report
+
+Generated: ${new Date().toISOString()}
+
+## Summary
+- **Uncovered Requirements:** ${uncovered.length}
+- **Orphaned Tests:** ${orphaned.length}
+
+## Uncovered Requirements
+`;
+
+        if (uncovered.length === 0) {
+          report += '✅ All requirements have coverage!\n\n';
+        } else {
+          const byPriority = {};
+          for (const req of uncovered) {
+            if (!byPriority[req.priority]) byPriority[req.priority] = [];
+            byPriority[req.priority].push(req);
+          }
+
+          for (const priority of ['critical', 'high', 'medium', 'low']) {
+            if (byPriority[priority] && byPriority[priority].length > 0) {
+              report += `\n### ${priority.charAt(0).toUpperCase() + priority.slice(1)} Priority\n`;
+              for (const req of byPriority[priority]) {
+                report += `- **${req.id}:** ${req.text}\n`;
+                if (req.missing.stories) report += `  - ❌ No implementation\n`;
+                if (req.missing.tests) report += `  - ❌ No tests\n`;
+              }
+            }
+          }
+        }
+
+        report += `\n## Orphaned Tests\n`;
+        if (orphaned.length === 0) {
+          report += '✅ All tests are linked to requirements!\n';
+        } else {
+          for (const test of orphaned) {
+            report += `- **${test.id}** [${test.type}]: ${test.reason}\n`;
+          }
+        }
+
+        return report;
+      }
+
+      async function generateRisksReport(manager, calculator) {
+        const coverage = await calculator.calculateCoverage();
+        const risks = coverage.risks || [];
+
+        let report = `# Risk Assessment Report
+
+Generated: ${new Date().toISOString()}
+
+## Risk Summary
+- **Total Risks Identified:** ${risks.length}
+- **High Severity:** ${risks.filter(r => r.severity === 'high').length}
+- **Medium Severity:** ${risks.filter(r => r.severity === 'medium').length}
+- **Low Severity:** ${risks.filter(r => r.severity === 'low').length}
+
+## Risk Details
+`;
+
+        if (risks.length === 0) {
+          report += '✅ No significant risks identified!\n';
+        } else {
+          const byS severity = { high: [], medium: [], low: [] };
+          for (const risk of risks) {
+            if (bySeverity[risk.severity]) {
+              bySeverity[risk.severity].push(risk);
+            }
+          }
+
+          for (const severity of ['high', 'medium', 'low']) {
+            if (bySeverity[severity].length > 0) {
+              const icon = severity === 'high' ? '🔴' : severity === 'medium' ? '🟡' : '🟢';
+              report += `\n### ${icon} ${severity.charAt(0).toUpperCase() + severity.slice(1)} Severity\n\n`;
+              for (const risk of bySeverity[severity]) {
+                report += `#### ${risk.type}\n`;
+                report += `- **Description:** ${risk.description}\n`;
+                report += `- **Mitigation:** ${risk.mitigation}\n\n`;
+              }
+            }
+          }
+        }
+
+        return report;
+      }
+    dependencies:
+      - calculate_metrics
+
+  - id: save_report
+    name: Save report to file
+    type: node
+    script: |
+      const fs = require('fs-extra');
+      const path = require('path');
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const ext = inputs.format === 'json' ? 'json' : inputs.format === 'html' ? 'html' : 'md';
+
+      let reportPath;
+      if (inputs.output_path) {
+        reportPath = inputs.output_path;
+      } else {
+        const filename = `rvtm-${inputs.report_type}-${timestamp}.${ext}`;
+        reportPath = path.join('.rvtm', 'reports', 'latest', filename);
+      }
+
+      // Handle different formats
+      if (inputs.format === 'json') {
+        const RVTMManager = require('../../../core/lib/rvtm/rvtm-manager');
+        const ReportGenerator = require('../../../core/lib/rvtm/report-generator');
+
+        const manager = new RVTMManager(inputs.project_root);
+        await manager.loadMatrix();
+
+        const reportGen = new ReportGenerator(manager);
+        await reportGen.exportReport('json', reportPath);
+      } else if (inputs.format === 'html') {
+        // Convert markdown to HTML
+        const marked = require('marked');
+        const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <title>RVTM Report</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; }
+    table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    code { background: #f4f4f4; padding: 2px 4px; border-radius: 3px; }
+    pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    h1 { color: #333; border-bottom: 2px solid #333; padding-bottom: 10px; }
+    h2 { color: #555; margin-top: 30px; }
+    h3 { color: #777; }
+  </style>
+</head>
+<body>
+${marked.parse(global.reportContent)}
+</body>
+</html>`;
+        await fs.writeFile(reportPath, htmlContent);
+      } else {
+        // Default markdown
+        await fs.writeFile(reportPath, global.reportContent);
+      }
+
+      // Archive copy
+      const archivePath = reportPath.replace('/latest/', '/archive/');
+      await fs.copy(reportPath, archivePath);
+
+      outputs.report_path = reportPath;
+      console.log(`✅ Report saved to: ${reportPath}`);
+    dependencies:
+      - generate_report_content
+
+  - id: email_report
+    name: Email report if recipients specified
+    type: node
+    script: |
+      if (inputs.email_recipients && inputs.email_recipients.length > 0) {
+        console.log('📧 Email functionality would send report to:');
+        for (const email of inputs.email_recipients) {
+          console.log(`  - ${email}`);
+        }
+        console.log('(Email integration not implemented in this version)');
+      }
+    dependencies:
+      - save_report
+    continue_on_error: true
+
+  - id: display_summary
+    name: Display report summary
+    type: shell
+    script: |
+      echo ""
+      echo "════════════════════════════════════════════════════════"
+      echo "    RVTM Report Generation Complete"
+      echo "════════════════════════════════════════════════════════"
+      echo ""
+      echo "📊 Report Type: ${inputs.report_type}"
+      echo "📄 Format: ${inputs.format}"
+      echo "📁 Location: ${outputs.report_path}"
+      echo ""
+      echo "📈 Metrics Summary:"
+      echo "  • Requirements: ${outputs.total_requirements}"
+      echo "  • Coverage: ${outputs.coverage_percentage}%"
+      echo "  • Status: ${outputs.status}"
+      echo "  • Critical Gaps: ${outputs.critical_gaps}"
+      echo "  • High Risks: ${outputs.high_risks}"
+      echo ""
+
+      # Provide status-specific guidance
+      if [ "${outputs.status}" = "critical" ]; then
+        echo "⚠️  URGENT: Critical coverage gaps detected!"
+        echo "   Review the report and address high-priority items immediately."
+      elif [ "${outputs.status}" = "poor" ]; then
+        echo "⚠️  WARNING: Coverage below acceptable levels."
+        echo "   Focus on increasing test coverage for critical requirements."
+      elif [ "${outputs.status}" = "acceptable" ]; then
+        echo "📝 NOTE: Coverage is acceptable but can be improved."
+        echo "   Consider adding tests for medium-priority requirements."
+      elif [ "${outputs.status}" = "good" ]; then
+        echo "✅ Good coverage levels maintained."
+        echo "   Continue current practices and address remaining gaps."
+      else
+        echo "🎉 Excellent coverage achieved!"
+        echo "   Maintain current standards and monitor for changes."
+      fi
+      echo ""
+    dependencies:
+      - email_report
+
+error_handling:
+  on_failure: continue
+  notify:
+    - type: log
+      message: "Report generation encountered issues but may have partially completed"
+
+validation:
+  pre_conditions:
+    - name: RVTM initialized
+      command: test -d .rvtm
+      error_message: "RVTM must be initialized first"
+
+    - name: Matrix file exists
+      command: test -f .rvtm/matrix.json
+      error_message: "RVTM matrix not found"
+
+  post_conditions:
+    - name: Report generated
+      command: test -n "${outputs.report_path}"
+      error_message: "Report path not set"

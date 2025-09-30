@@ -1,0 +1,249 @@
+name: initialize-rvtm
+version: "1.0.0"
+description: Initialize Requirements Verification Traceability Matrix (RVTM) for project
+category: rvtm
+phase: initialization
+tags:
+  - traceability
+  - requirements
+  - quality
+  - compliance
+
+inputs:
+  project_root:
+    type: string
+    description: Root directory of the project
+    required: true
+    default: "."
+
+  import_existing:
+    type: boolean
+    description: Import existing requirements from PRDs
+    required: false
+    default: true
+
+  coverage_threshold:
+    type: number
+    description: Minimum coverage percentage required
+    required: false
+    default: 90
+
+  require_links:
+    type: boolean
+    description: Enforce requirement linking for stories and tests
+    required: false
+    default: true
+
+outputs:
+  rvtm_path:
+    type: string
+    description: Path to RVTM directory
+
+  config_path:
+    type: string
+    description: Path to RVTM configuration file
+
+  baseline_report:
+    type: string
+    description: Path to baseline report
+
+  requirements_count:
+    type: number
+    description: Number of requirements imported
+
+steps:
+  - id: check_existing
+    name: Check for existing RVTM
+    type: shell
+    command: |
+      if [ -d ".rvtm" ]; then
+        echo "RVTM already exists. Use update workflow instead."
+        exit 1
+      fi
+    continue_on_error: false
+
+  - id: create_structure
+    name: Create RVTM directory structure
+    type: node
+    script: |
+      const RVTMManager = require('../../../core/lib/rvtm/rvtm-manager');
+      const manager = new RVTMManager(inputs.project_root);
+
+      await manager.createDirectoryStructure();
+      console.log('✅ RVTM directory structure created');
+    dependencies:
+      - check_existing
+
+  - id: initialize_config
+    name: Initialize RVTM configuration
+    type: node
+    script: |
+      const RVTMManager = require('../../../core/lib/rvtm/rvtm-manager');
+      const manager = new RVTMManager(inputs.project_root);
+
+      const options = {
+        require_links: inputs.require_links,
+        coverage_threshold: inputs.coverage_threshold,
+        auto_update: true,
+        validation_enabled: true
+      };
+
+      await manager.initializeConfiguration(options);
+      console.log('✅ RVTM configuration initialized');
+
+      outputs.config_path = manager.configPath;
+    dependencies:
+      - create_structure
+
+  - id: initialize_matrix
+    name: Initialize traceability matrix
+    type: node
+    script: |
+      const RVTMManager = require('../../../core/lib/rvtm/rvtm-manager');
+      const manager = new RVTMManager(inputs.project_root);
+
+      await manager.initializeMatrix();
+      console.log('✅ Traceability matrix initialized');
+
+      outputs.rvtm_path = manager.rvtmPath;
+    dependencies:
+      - initialize_config
+
+  - id: import_requirements
+    name: Import existing requirements
+    type: node
+    script: |
+      const RVTMManager = require('../../../core/lib/rvtm/rvtm-manager');
+      const manager = new RVTMManager(inputs.project_root);
+
+      if (inputs.import_existing) {
+        await manager.loadMatrix();
+        await manager.importExistingRequirements();
+
+        const requirements = await manager.getRequirements();
+        outputs.requirements_count = requirements.length;
+
+        console.log(`✅ Imported ${requirements.length} requirements`);
+      } else {
+        outputs.requirements_count = 0;
+        console.log('⏭️ Skipped requirement import');
+      }
+    dependencies:
+      - initialize_matrix
+    continue_on_error: true
+
+  - id: generate_baseline
+    name: Generate baseline report
+    type: node
+    script: |
+      const RVTMManager = require('../../../core/lib/rvtm/rvtm-manager');
+      const ReportGenerator = require('../../../core/lib/rvtm/report-generator');
+      const path = require('path');
+
+      const manager = new RVTMManager(inputs.project_root);
+      await manager.loadMatrix();
+
+      const reportGen = new ReportGenerator(manager);
+      const report = await reportGen.generateReport();
+
+      const reportPath = path.join(manager.rvtmPath, 'reports', 'latest', 'baseline.md');
+      await require('fs-extra').writeFile(reportPath, report);
+
+      outputs.baseline_report = reportPath;
+      console.log('✅ Baseline report generated');
+    dependencies:
+      - import_requirements
+
+  - id: create_hooks
+    name: Create Git hooks for RVTM updates
+    type: shell
+    script: |
+      cat > .git/hooks/pre-commit << 'EOF'
+      #!/bin/bash
+      # RVTM Pre-commit hook - Validate requirement links
+
+      if [ -d ".rvtm" ]; then
+        node -e "
+          const RVTMManager = require('./bmad/core/lib/rvtm/rvtm-manager');
+          const manager = new RVTMManager('.');
+
+          (async () => {
+            await manager.loadMatrix();
+            const config = await manager.getConfiguration();
+
+            if (config.settings.validation_enabled) {
+              const CoverageCalculator = require('./bmad/core/lib/rvtm/coverage-calculator');
+              const calc = new CoverageCalculator(manager);
+              const validation = await calc.validateCoverage();
+
+              if (!validation.passed) {
+                console.error('❌ RVTM Coverage validation failed');
+                console.error(validation.message);
+                process.exit(1);
+              }
+
+              console.log('✅ RVTM validation passed');
+            }
+          })().catch(err => {
+            console.error('RVTM validation error:', err);
+            process.exit(1);
+          });
+        "
+      fi
+      EOF
+
+      chmod +x .git/hooks/pre-commit
+      echo "✅ Git hooks created"
+    dependencies:
+      - generate_baseline
+    continue_on_error: true
+
+  - id: summary
+    name: Display initialization summary
+    type: shell
+    script: |
+      echo ""
+      echo "════════════════════════════════════════════════════════"
+      echo "    RVTM Initialization Complete"
+      echo "════════════════════════════════════════════════════════"
+      echo ""
+      echo "📁 RVTM Path: ${outputs.rvtm_path}"
+      echo "⚙️  Config: ${outputs.config_path}"
+      echo "📊 Baseline Report: ${outputs.baseline_report}"
+      echo "📝 Requirements Imported: ${outputs.requirements_count}"
+      echo ""
+      echo "Next Steps:"
+      echo "  1. Review the baseline report"
+      echo "  2. Start linking stories to requirements"
+      echo "  3. Map tests to requirements"
+      echo "  4. Monitor coverage with 'bmad rvtm report'"
+      echo ""
+    dependencies:
+      - create_hooks
+
+error_handling:
+  on_failure: rollback
+  rollback_steps:
+    - name: Remove RVTM directory
+      command: rm -rf .rvtm
+    - name: Remove Git hooks
+      command: rm -f .git/hooks/pre-commit
+
+validation:
+  pre_conditions:
+    - name: Node.js available
+      command: which node
+      error_message: "Node.js is required for RVTM"
+
+    - name: Project is Git repository
+      command: git status
+      error_message: "Project must be a Git repository"
+
+  post_conditions:
+    - name: RVTM directory exists
+      command: test -d .rvtm
+      error_message: "RVTM directory was not created"
+
+    - name: Configuration exists
+      command: test -f .rvtm/config.yaml
+      error_message: "RVTM configuration was not created"

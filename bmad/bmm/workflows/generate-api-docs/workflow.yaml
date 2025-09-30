@@ -1,0 +1,580 @@
+name: generate-api-docs
+description: Generate comprehensive API documentation from code and specifications
+version: 1.0.0
+author: Tech Writer Agent Yvonne
+tags: [documentation, api, openapi, rest, graphql]
+
+inputs:
+  required:
+    project_root:
+      type: path
+      description: Root directory of the API project
+      default: "{current_directory}"
+
+    output_folder:
+      type: path
+      description: Where to save API documentation
+      default: "{project_root}/docs/api"
+
+  optional:
+    api_title:
+      type: string
+      description: API display name
+      prompt: "What is the name of your API?"
+
+    base_url:
+      type: string
+      description: Base URL for API endpoints
+      default: "http://localhost:3000/api"
+
+    api_version:
+      type: string
+      description: API version
+      default: "1.0.0"
+
+    openapi_spec:
+      type: path
+      description: Path to OpenAPI/Swagger specification file
+
+    postman_collection:
+      type: path
+      description: Path to Postman collection file
+
+    include_examples:
+      type: boolean
+      description: Include request/response examples
+      default: true
+
+    include_sdk:
+      type: boolean
+      description: Generate SDK code examples
+      default: true
+
+    sdk_languages:
+      type: array
+      description: Languages for SDK examples
+      default: ["javascript", "python", "curl"]
+
+outputs:
+  docs_path:
+    type: path
+    description: Path to generated API documentation
+
+  openapi_generated:
+    type: path
+    description: Path to generated OpenAPI spec (if created)
+
+  endpoints_count:
+    type: number
+    description: Number of documented endpoints
+
+  validation_report:
+    type: object
+    description: API documentation quality report
+
+phases:
+  - name: Discovery
+    description: Discover API endpoints and structure
+    steps:
+      - id: check_openapi
+        task: find-file
+        config:
+          patterns:
+            - "openapi.yaml"
+            - "openapi.json"
+            - "swagger.yaml"
+            - "swagger.json"
+            - "api-spec.yaml"
+          fallback: "{inputs.openapi_spec}"
+
+      - id: analyze_code
+        task: analyze-api-code
+        condition: "!{steps.check_openapi.found}"
+        config:
+          project_root: "{inputs.project_root}"
+          detect:
+            - rest_endpoints
+            - graphql_schemas
+            - websocket_events
+            - grpc_services
+
+      - id: extract_endpoints
+        task: extract-endpoints
+        config:
+          source: "{steps.check_openapi.output || steps.analyze_code.output}"
+          group_by:
+            - resource
+            - tag
+            - version
+
+      - id: discover_auth
+        task: discover-authentication
+        config:
+          project_root: "{inputs.project_root}"
+          patterns:
+            - jwt_implementation
+            - oauth_config
+            - api_key_usage
+            - basic_auth
+
+      - id: find_models
+        task: extract-models
+        config:
+          source: "{steps.analyze_code.output}"
+          include:
+            - request_schemas
+            - response_schemas
+            - error_schemas
+            - enum_types
+
+  - name: Content Generation
+    description: Generate API documentation content
+    steps:
+      - id: generate_overview
+        task: create-api-overview
+        template: |
+          # {api_title} API Documentation
+
+          Version: {api_version}
+          Base URL: `{base_url}`
+
+          ## Overview
+
+          {api_description}
+
+          ### Available Formats
+          - REST API
+          {{#if has_graphql}}
+          - GraphQL API
+          {{/if}}
+          {{#if has_websocket}}
+          - WebSocket Events
+          {{/if}}
+
+          ### Rate Limiting
+          {rate_limit_info|No rate limiting information available}
+
+      - id: generate_authentication
+        task: document-authentication
+        config:
+          auth_methods: "{steps.discover_auth.output}"
+          template: |
+            ## Authentication
+
+            {{#each auth_methods}}
+            ### {method_name}
+
+            {description}
+
+            **Implementation:**
+            ```http
+            {example}
+            ```
+
+            {{#if required_scopes}}
+            **Required Scopes:**
+            {{#each required_scopes}}
+            - `{scope}`: {description}
+            {{/each}}
+            {{/if}}
+            {{/each}}
+
+      - id: generate_endpoints
+        task: document-endpoints
+        config:
+          endpoints: "{steps.extract_endpoints.output}"
+          include_examples: "{inputs.include_examples}"
+          template: |
+            ## Endpoints
+
+            {{#each endpoint_groups}}
+            ### {group_name}
+
+            {group_description}
+
+            {{#each endpoints}}
+            #### {method} {path}
+
+            {description}
+
+            {{#if deprecated}}
+            > ⚠️ **Deprecated**: {deprecation_notice}
+            {{/if}}
+
+            **Authorization:** {auth_required|None required}
+
+            {{#if parameters}}
+            **Parameters:**
+
+            | Name | In | Type | Required | Description |
+            |------|-----|------|----------|-------------|
+            {{#each parameters}}
+            | `{name}` | {in} | {type} | {required} | {description} |
+            {{/each}}
+            {{/if}}
+
+            {{#if request_body}}
+            **Request Body:**
+
+            ```json
+            {request_schema}
+            ```
+            {{/if}}
+
+            **Responses:**
+
+            | Status | Description | Schema |
+            |--------|-------------|---------|
+            {{#each responses}}
+            | {status} | {description} | {schema_ref} |
+            {{/each}}
+
+            {{#if examples}}
+            <details>
+            <summary>Examples</summary>
+
+            **Request:**
+            ```{example_lang}
+            {request_example}
+            ```
+
+            **Response:**
+            ```json
+            {response_example}
+            ```
+            </details>
+            {{/if}}
+            {{/each}}
+            {{/each}}
+
+      - id: generate_models
+        task: document-models
+        config:
+          models: "{steps.find_models.output}"
+          template: |
+            ## Models
+
+            {{#each models}}
+            ### {model_name}
+
+            {description}
+
+            ```json
+            {schema}
+            ```
+
+            **Properties:**
+
+            | Property | Type | Required | Description |
+            |----------|------|----------|-------------|
+            {{#each properties}}
+            | `{name}` | {type} | {required} | {description} |
+            {{/each}}
+            {{/each}}
+
+      - id: generate_errors
+        task: document-errors
+        config:
+          discover_from: "{steps.analyze_code.output}"
+          template: |
+            ## Error Responses
+
+            ### Standard Error Format
+
+            ```json
+            {
+              "error": {
+                "code": "ERROR_CODE",
+                "message": "Human-readable error message",
+                "details": {}
+              }
+            }
+            ```
+
+            ### Error Codes
+
+            | Code | HTTP Status | Description | Resolution |
+            |------|-------------|-------------|------------|
+            {{#each error_codes}}
+            | `{code}` | {http_status} | {description} | {resolution} |
+            {{/each}}
+
+      - id: generate_sdk_examples
+        task: create-sdk-examples
+        condition: "{inputs.include_sdk}"
+        config:
+          endpoints: "{steps.extract_endpoints.output}"
+          languages: "{inputs.sdk_languages}"
+          template: |
+            ## SDK Examples
+
+            {{#each languages}}
+            ### {language_name}
+
+            #### Installation
+
+            ```{language}
+            {install_command}
+            ```
+
+            #### Initialization
+
+            ```{language}
+            {init_code}
+            ```
+
+            #### Example Usage
+
+            ```{language}
+            {usage_example}
+            ```
+            {{/each}}
+
+      - id: generate_webhooks
+        task: document-webhooks
+        condition: "{steps.analyze_code.output.has_webhooks}"
+        config:
+          webhooks: "{steps.analyze_code.output.webhooks}"
+          template: |
+            ## Webhooks
+
+            {{#each webhooks}}
+            ### {event_name}
+
+            {description}
+
+            **Trigger:** {trigger_condition}
+
+            **Payload:**
+
+            ```json
+            {payload_schema}
+            ```
+
+            **Headers:**
+            - `X-Webhook-Event`: {event_name}
+            - `X-Webhook-Signature`: HMAC-SHA256 signature
+            {{/each}}
+
+      - id: generate_graphql
+        task: document-graphql
+        condition: "{steps.analyze_code.output.has_graphql}"
+        config:
+          schema: "{steps.analyze_code.output.graphql_schema}"
+          template: |
+            ## GraphQL API
+
+            ### Schema
+
+            ```graphql
+            {schema}
+            ```
+
+            ### Queries
+
+            {{#each queries}}
+            #### {query_name}
+
+            {description}
+
+            ```graphql
+            {query_example}
+            ```
+            {{/each}}
+
+            ### Mutations
+
+            {{#each mutations}}
+            #### {mutation_name}
+
+            {description}
+
+            ```graphql
+            {mutation_example}
+            ```
+            {{/each}}
+
+  - name: OpenAPI Generation
+    description: Generate OpenAPI specification if not exists
+    condition: "!{steps.check_openapi.found}"
+    steps:
+      - id: create_openapi
+        task: generate-openapi
+        config:
+          version: "3.0.3"
+          info:
+            title: "{inputs.api_title}"
+            version: "{inputs.api_version}"
+            description: "{api_description}"
+          servers:
+            - url: "{inputs.base_url}"
+          paths: "{steps.extract_endpoints.output}"
+          components:
+            schemas: "{steps.find_models.output}"
+            securitySchemes: "{steps.discover_auth.output}"
+
+      - id: validate_openapi
+        task: validate-openapi-spec
+        config:
+          spec: "{steps.create_openapi.output}"
+          strict: true
+
+      - id: save_openapi
+        task: save-file
+        config:
+          content: "{steps.create_openapi.output}"
+          path: "{inputs.output_folder}/openapi.yaml"
+          format: yaml
+
+  - name: Assembly
+    description: Combine all documentation sections
+    steps:
+      - id: combine_docs
+        task: assemble-document
+        config:
+          sections:
+            - "{steps.generate_overview.output}"
+            - "{steps.generate_authentication.output}"
+            - "{steps.generate_endpoints.output}"
+            - "{steps.generate_models.output}"
+            - "{steps.generate_errors.output}"
+            - "{steps.generate_sdk_examples.output}"
+            - "{steps.generate_webhooks.output}"
+            - "{steps.generate_graphql.output}"
+          add_toc: true
+          add_changelog: true
+          add_glossary: true
+
+      - id: generate_postman
+        task: create-postman-collection
+        config:
+          api_name: "{inputs.api_title}"
+          endpoints: "{steps.extract_endpoints.output}"
+          base_url: "{inputs.base_url}"
+          auth: "{steps.discover_auth.output}"
+
+      - id: generate_swagger_ui
+        task: create-swagger-ui
+        config:
+          spec_path: "{steps.save_openapi.output.path}"
+          output_path: "{inputs.output_folder}/swagger-ui"
+
+  - name: Validation
+    description: Validate API documentation
+    steps:
+      - id: validate_completeness
+        task: check-api-doc-completeness
+        config:
+          document: "{steps.combine_docs.output}"
+          requirements:
+            - all_endpoints_documented
+            - authentication_explained
+            - error_codes_listed
+            - examples_provided
+            - models_defined
+
+      - id: test_examples
+        task: test-api-examples
+        config:
+          examples: "{steps.generate_endpoints.output.examples}"
+          base_url: "{inputs.base_url}"
+          mock_mode: true
+
+      - id: check_links
+        task: validate-links
+        config:
+          document: "{steps.combine_docs.output}"
+          check_external: true
+
+  - name: Output
+    description: Save documentation and reports
+    steps:
+      - id: save_main_doc
+        task: save-file
+        config:
+          content: "{steps.combine_docs.output}"
+          path: "{inputs.output_folder}/index.md"
+          create_dirs: true
+
+      - id: save_postman
+        task: save-file
+        config:
+          content: "{steps.generate_postman.output}"
+          path: "{inputs.output_folder}/collection.postman.json"
+
+      - id: create_readme
+        task: create-api-readme
+        config:
+          api_title: "{inputs.api_title}"
+          docs_path: "{inputs.output_folder}"
+          endpoints_count: "{steps.extract_endpoints.output.count}"
+
+      - id: generate_report
+        task: create-report
+        config:
+          validation_results: "{steps.validate_completeness.output}"
+          endpoints_documented: "{steps.extract_endpoints.output.count}"
+          examples_tested: "{steps.test_examples.output}"
+
+      - id: display_summary
+        task: show-summary
+        config:
+          message: |
+            ✅ API Documentation Generated Successfully!
+
+            📄 Documentation: {steps.save_main_doc.output.path}
+            📊 Endpoints Documented: {steps.extract_endpoints.output.count}
+            🔧 OpenAPI Spec: {steps.save_openapi.output.path}
+            📮 Postman Collection: {steps.save_postman.output.path}
+            🎨 Swagger UI: {steps.generate_swagger_ui.output.url}
+
+            Quality Score: {steps.validate_completeness.output.score}%
+            ⏱️ Generation Time: {elapsed_time}s
+
+hooks:
+  pre_execution:
+    - check_api_availability
+    - validate_inputs
+
+  post_endpoint:
+    - log_endpoint_documentation
+    - update_progress
+
+  on_error:
+    - log_error
+    - save_partial_documentation
+
+error_handling:
+  no_endpoints_found:
+    action: alert_user
+    message: "No API endpoints found. Please check your code or provide an OpenAPI spec."
+
+  invalid_openapi:
+    action: continue_with_code_analysis
+    message: "Invalid OpenAPI spec, falling back to code analysis"
+
+  test_failure:
+    action: document_untested
+    message: "Some examples could not be tested"
+
+performance:
+  cache:
+    enabled: true
+    ttl: 1800
+    key: "{project_root}_api_analysis"
+
+  parallel:
+    enabled: true
+    max_workers: 6
+
+  timeout:
+    total: 60
+    per_endpoint: 2
+
+metrics:
+  track:
+    - endpoints_documented
+    - models_extracted
+    - examples_generated
+    - validation_score
+    - generation_time

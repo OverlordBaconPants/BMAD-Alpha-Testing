@@ -38,6 +38,7 @@
     "release:minor": "gh workflow run \"Manual Release\" -f version_bump=minor",
     "release:patch": "gh workflow run \"Manual Release\" -f version_bump=patch",
     "release:watch": "gh run watch",
+    "test:rvtm": "mocha bmad/bmm/tests/acceptance/rvtm/rvtm.acceptance.test.js --timeout 10000",
     "validate:bundles": "node tools/validate-bundles.js"
   },
   "lint-staged": {
@@ -66,6 +67,7 @@
     "ignore": "^7.0.5",
     "inquirer": "^8.2.6",
     "js-yaml": "^4.1.0",
+    "marked": "^16.3.0",
     "ora": "^5.4.1",
     "semver": "^7.6.3",
     "wrap-ansi": "^7.0.0",
@@ -73,6 +75,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",
+    "chai": "^6.2.0",
     "eslint": "^9.33.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-n": "^17.21.3",
@@ -81,8 +84,11 @@
     "husky": "^9.1.7",
     "jest": "^30.0.4",
     "lint-staged": "^16.1.1",
+    "mocha": "^11.7.2",
     "prettier": "^3.5.3",
     "prettier-plugin-packagejson": "^2.5.19",
+    "sinon": "^21.0.0",
+    "uuid": "^13.0.0",
     "yaml-eslint-parser": "^1.2.3",
     "yaml-lint": "^1.7.0"
   },
