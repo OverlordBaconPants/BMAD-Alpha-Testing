@@ -340,7 +340,3 @@ To remove RVTM if needed:
 ---
 
 **Ready for Review**
-
-cc: @team-leads @qa-team @dev-team
-
-*This PR implements Epic EPIC-RVTM-001*

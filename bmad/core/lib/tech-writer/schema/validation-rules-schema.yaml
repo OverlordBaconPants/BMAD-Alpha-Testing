@@ -1,0 +1,354 @@
+# Tech Writer Validation Rules Schema
+# Defines validation rules for different documentation types
+
+version: "1.0.0"
+schema_type: "tech-writer-validation-rules"
+
+# Global validation rules (apply to all documentation types)
+global_rules:
+  structure:
+    - id: "no-empty-sections"
+      description: "Sections must not be empty"
+      severity: error
+      enabled: true
+
+    - id: "consistent-headers"
+      description: "Headers must follow consistent hierarchy (no skipped levels)"
+      severity: warning
+      enabled: true
+
+    - id: "title-required"
+      description: "Document must have a title (H1)"
+      severity: error
+      enabled: true
+
+  links:
+    - id: "no-broken-internal-links"
+      description: "Internal links must point to existing files"
+      severity: error
+      enabled: true
+
+    - id: "descriptive-link-text"
+      description: "Link text should be descriptive (not 'click here')"
+      severity: warning
+      enabled: false
+
+    - id: "check-anchors"
+      description: "Anchor links must point to existing sections"
+      severity: error
+      enabled: true
+
+  content:
+    - id: "no-placeholder-text"
+      description: "No TODO, FIXME, or [TBD] placeholders"
+      severity: warning
+      enabled: true
+
+    - id: "minimum-word-count"
+      description: "Document must meet minimum word count"
+      severity: warning
+      enabled: true
+      params:
+        min_words: 100
+
+    - id: "no-exposed-credentials"
+      description: "No API keys, tokens, or credentials exposed"
+      severity: error
+      enabled: true
+
+  code:
+    - id: "code-language-specified"
+      description: "Code blocks should specify language"
+      severity: warning
+      enabled: true
+
+    - id: "code-examples-present"
+      description: "Documentation should include code examples"
+      severity: info
+      enabled: true
+
+  accessibility:
+    - id: "images-have-alt-text"
+      description: "Images must have meaningful alt text"
+      severity: warning
+      enabled: true
+
+# Type-specific validation rules
+type_rules:
+  readme:
+    required_sections:
+      - "Overview" or "About" or "Description"
+      - "Installation" or "Getting Started" or "Setup"
+      - "Usage" or "Quick Start" or "Examples"
+      - "License"
+
+    recommended_sections:
+      - "Features"
+      - "Requirements" or "Prerequisites"
+      - "Configuration"
+      - "Contributing"
+      - "Testing"
+      - "Troubleshooting" or "FAQ"
+      - "Changelog"
+
+    specific_rules:
+      - id: "installation-has-code"
+        description: "Installation section should include code examples"
+        severity: warning
+        enabled: true
+
+      - id: "usage-has-code"
+        description: "Usage section should include code examples"
+        severity: warning
+        enabled: true
+
+      - id: "has-badges"
+        description: "README should include status badges"
+        severity: info
+        enabled: false
+
+    min_quality_score: 70
+    min_completeness: 80
+
+  api:
+    required_sections:
+      - "Overview" or "Introduction"
+      - "Authentication"
+      - "Endpoints" or "API Reference"
+      - "Errors" or "Error Codes"
+
+    recommended_sections:
+      - "Rate Limiting"
+      - "Examples"
+      - "SDKs" or "Client Libraries"
+      - "Webhooks"
+      - "Changelog" or "Versioning"
+
+    specific_rules:
+      - id: "endpoints-documented"
+        description: "All endpoints must be documented"
+        severity: error
+        enabled: true
+
+      - id: "request-response-examples"
+        description: "Each endpoint should have request/response examples"
+        severity: warning
+        enabled: true
+
+      - id: "authentication-documented"
+        description: "Authentication method must be clearly documented"
+        severity: error
+        enabled: true
+
+      - id: "error-codes-documented"
+        description: "Error codes and messages must be documented"
+        severity: warning
+        enabled: true
+
+      - id: "parameters-typed"
+        description: "Parameters should specify type and required/optional"
+        severity: warning
+        enabled: true
+
+    min_quality_score: 80
+    min_completeness: 90
+
+  guide:
+    required_sections:
+      - "Introduction" or "Overview"
+      - "Prerequisites" or "Requirements"
+      - "Getting Started"
+
+    recommended_sections:
+      - "Tutorials"
+      - "Examples"
+      - "Best Practices"
+      - "Troubleshooting"
+      - "FAQ"
+      - "Next Steps"
+
+    specific_rules:
+      - id: "progressive-disclosure"
+        description: "Content should progress from beginner to advanced"
+        severity: info
+        enabled: true
+
+      - id: "step-by-step-instructions"
+        description: "Include step-by-step instructions"
+        severity: warning
+        enabled: true
+
+      - id: "screenshots-or-diagrams"
+        description: "Include visual aids (screenshots, diagrams)"
+        severity: info
+        enabled: true
+
+      - id: "practical-examples"
+        description: "Include practical, real-world examples"
+        severity: warning
+        enabled: true
+
+    min_quality_score: 75
+    min_completeness: 85
+
+  architecture:
+    required_sections:
+      - "Overview" or "Introduction"
+      - "System Architecture" or "Architecture Overview"
+      - "Components"
+
+    recommended_sections:
+      - "Data Flow"
+      - "Deployment Architecture"
+      - "Security Architecture"
+      - "Scalability Considerations"
+      - "Technology Stack"
+      - "Design Decisions"
+
+    specific_rules:
+      - id: "has-architecture-diagram"
+        description: "Must include architecture diagram"
+        severity: error
+        enabled: true
+
+      - id: "components-documented"
+        description: "All major components must be documented"
+        severity: warning
+        enabled: true
+
+      - id: "data-flow-explained"
+        description: "Data flow between components should be explained"
+        severity: warning
+        enabled: true
+
+      - id: "has-sequence-diagrams"
+        description: "Should include sequence diagrams for key interactions"
+        severity: info
+        enabled: true
+
+    min_quality_score: 80
+    min_completeness: 90
+
+  reference:
+    required_sections:
+      - "Overview" or "Introduction"
+      - "API Reference" or "Function Reference"
+
+    recommended_sections:
+      - "Examples"
+      - "Type Definitions"
+      - "Constants"
+      - "Errors"
+
+    specific_rules:
+      - id: "all-functions-documented"
+        description: "All public functions/methods must be documented"
+        severity: error
+        enabled: true
+
+      - id: "parameters-documented"
+        description: "All parameters must be documented with types"
+        severity: error
+        enabled: true
+
+      - id: "return-values-documented"
+        description: "Return values must be documented"
+        severity: error
+        enabled: true
+
+      - id: "function-examples"
+        description: "Functions should include usage examples"
+        severity: warning
+        enabled: true
+
+    min_quality_score: 85
+    min_completeness: 95
+
+  tutorial:
+    required_sections:
+      - "Introduction" or "Overview"
+      - "Prerequisites"
+      - "Steps" or "Tutorial Steps"
+      - "Conclusion" or "Next Steps"
+
+    recommended_sections:
+      - "What You'll Build"
+      - "Requirements"
+      - "Troubleshooting"
+      - "Further Reading"
+
+    specific_rules:
+      - id: "clear-learning-objectives"
+        description: "Tutorial should state clear learning objectives"
+        severity: warning
+        enabled: true
+
+      - id: "numbered-steps"
+        description: "Tutorial should use numbered steps"
+        severity: warning
+        enabled: true
+
+      - id: "working-examples"
+        description: "All code examples should be complete and working"
+        severity: error
+        enabled: true
+
+      - id: "screenshot-examples"
+        description: "Include screenshots of expected results"
+        severity: info
+        enabled: true
+
+    min_quality_score: 75
+    min_completeness: 90
+
+# Severity levels
+severity_levels:
+  error:
+    description: "Critical issue that must be fixed"
+    blocks_publication: true
+    weight: 10
+
+  warning:
+    description: "Issue that should be addressed"
+    blocks_publication: false
+    weight: 5
+
+  info:
+    description: "Suggestion for improvement"
+    blocks_publication: false
+    weight: 1
+
+# Validation profiles
+profiles:
+  basic:
+    description: "Basic validation - only critical errors"
+    include_rules:
+      - severity: [error]
+    min_quality_score: 50
+
+  standard:
+    description: "Standard validation - errors and warnings"
+    include_rules:
+      - severity: [error, warning]
+    min_quality_score: 70
+
+  strict:
+    description: "Strict validation - all rules including info"
+    include_rules:
+      - severity: [error, warning, info]
+    min_quality_score: 85
+    additional_checks:
+      - accessibility
+      - security
+      - terminology_consistency
+      - reading_level
+
+# Custom rule definitions
+custom_rules:
+  placeholder: "Users can define custom validation rules here"
+  example:
+    - id: "custom-company-name"
+      description: "Documentation must reference company name"
+      severity: info
+      pattern: "CompanyName"
+      enabled: false

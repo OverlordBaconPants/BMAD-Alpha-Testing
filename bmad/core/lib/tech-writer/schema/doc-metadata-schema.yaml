@@ -1,0 +1,322 @@
+# Tech Writer Documentation Metadata Schema
+# Defines the structure for documentation metadata tracking
+
+version: "1.0.0"
+schema_type: "tech-writer-metadata"
+
+documentation:
+  # Core metadata
+  title:
+    type: string
+    required: true
+    description: "Title of the documentation"
+    example: "My Project API Documentation"
+
+  version:
+    type: string
+    required: true
+    description: "Documentation version (typically matches project version)"
+    pattern: "^\\d+\\.\\d+\\.\\d+$"
+    example: "1.2.3"
+
+  created:
+    type: timestamp
+    required: true
+    description: "ISO 8601 timestamp when documentation was first created"
+    example: "2025-09-30T10:00:00Z"
+
+  updated:
+    type: timestamp
+    required: true
+    description: "ISO 8601 timestamp when documentation was last updated"
+    example: "2025-09-30T15:30:00Z"
+
+  type:
+    type: enum
+    required: true
+    values: [readme, api, guide, architecture, reference, tutorial]
+    description: "Type of documentation"
+
+  # Project information
+  project:
+    name:
+      type: string
+      required: true
+      description: "Name of the project being documented"
+
+    version:
+      type: string
+      required: true
+      description: "Project version"
+      pattern: "^\\d+\\.\\d+\\.\\d+$"
+
+    repository:
+      type: string
+      required: false
+      description: "Repository URL"
+      pattern: "^https?://.*"
+
+    language:
+      type: string
+      required: true
+      description: "Primary programming language"
+
+    framework:
+      type: string
+      required: false
+      description: "Primary framework or library"
+
+  # Authorship
+  author:
+    name:
+      type: string
+      required: false
+      description: "Author or maintainer name"
+
+    generated_by:
+      type: string
+      required: false
+      description: "Tool that generated documentation"
+      example: "BMAD Tech Writer"
+
+    generated_with_ai:
+      type: boolean
+      default: false
+      description: "Whether AI was used in generation"
+
+  # Quality metrics
+  coverage:
+    completeness:
+      type: number
+      required: true
+      min: 0
+      max: 100
+      description: "Completeness percentage (0-100)"
+
+    sections:
+      type: array
+      required: true
+      items:
+        name:
+          type: string
+          description: "Section name"
+
+        status:
+          type: enum
+          values: [complete, partial, missing, placeholder]
+          description: "Status of this section"
+
+        word_count:
+          type: number
+          description: "Number of words in section"
+
+        last_updated:
+          type: timestamp
+          description: "When section was last updated"
+
+    required_sections:
+      type: array
+      items:
+        type: string
+      description: "List of sections that should be present"
+      example: ["Installation", "Usage", "API Reference"]
+
+  # Validation results
+  validation:
+    last_validated:
+      type: timestamp
+      description: "When documentation was last validated"
+
+    quality_score:
+      type: number
+      min: 0
+      max: 100
+      description: "Overall quality score from validation"
+
+    is_valid:
+      type: boolean
+      description: "Whether documentation passes validation"
+
+    issues:
+      type: array
+      items:
+        type:
+          type: string
+          description: "Issue type"
+        severity:
+          type: enum
+          values: [error, warning, info]
+        message:
+          type: string
+        line:
+          type: number
+          required: false
+
+    reading_level:
+      type: number
+      description: "Estimated reading level (Flesch-Kincaid grade)"
+      example: 8.5
+
+  # Content statistics
+  statistics:
+    total_words:
+      type: number
+      description: "Total word count"
+
+    total_lines:
+      type: number
+      description: "Total line count"
+
+    code_examples:
+      type: number
+      description: "Number of code examples included"
+
+    diagrams:
+      type: number
+      description: "Number of diagrams included"
+
+    internal_links:
+      type: number
+      description: "Number of internal links"
+
+    external_links:
+      type: number
+      description: "Number of external links"
+
+    images:
+      type: number
+      description: "Number of images"
+
+  # Configuration
+  config:
+    reading_level_target:
+      type: number
+      default: 8
+      description: "Target reading level (grade level)"
+
+    format:
+      type: enum
+      values: [markdown, rst, html, pdf]
+      description: "Documentation format"
+
+    language:
+      type: string
+      default: "en"
+      description: "Natural language (ISO 639-1 code)"
+      pattern: "^[a-z]{2}$"
+
+    theme:
+      type: string
+      required: false
+      description: "Documentation theme or style"
+
+  # Change tracking
+  changelog:
+    type: array
+    items:
+      timestamp:
+        type: timestamp
+        description: "When change was made"
+
+      version:
+        type: string
+        description: "Documentation version for this change"
+
+      author:
+        type: string
+        description: "Who made the change"
+
+      description:
+        type: string
+        description: "Description of changes"
+
+      sections_affected:
+        type: array
+        items:
+          type: string
+        description: "Which sections were changed"
+
+  # Tags and categorization
+  tags:
+    type: array
+    items:
+      type: string
+    description: "Tags for categorization"
+    example: ["api", "rest", "authentication"]
+
+  keywords:
+    type: array
+    items:
+      type: string
+    description: "Keywords for searchability"
+
+  # Related documentation
+  related:
+    type: array
+    items:
+      title:
+        type: string
+      path:
+        type: string
+      type:
+        type: string
+    description: "Links to related documentation"
+
+# Example usage
+example:
+  documentation:
+    title: "My Project README"
+    version: "1.0.0"
+    created: "2025-09-30T10:00:00Z"
+    updated: "2025-09-30T15:30:00Z"
+    type: readme
+
+    project:
+      name: "my-awesome-api"
+      version: "1.0.0"
+      repository: "https://github.com/user/my-awesome-api"
+      language: "JavaScript"
+      framework: "Express"
+
+    author:
+      generated_by: "BMAD Tech Writer"
+      generated_with_ai: true
+
+    coverage:
+      completeness: 95
+      sections:
+        - name: "Installation"
+          status: complete
+          word_count: 247
+          last_updated: "2025-09-30T15:30:00Z"
+        - name: "Usage"
+          status: complete
+          word_count: 412
+          last_updated: "2025-09-30T15:30:00Z"
+        - name: "API Reference"
+          status: partial
+          word_count: 156
+          last_updated: "2025-09-30T12:00:00Z"
+
+    validation:
+      last_validated: "2025-09-30T15:30:00Z"
+      quality_score: 92
+      is_valid: true
+      issues: []
+      reading_level: 8.2
+
+    statistics:
+      total_words: 1823
+      total_lines: 247
+      code_examples: 7
+      diagrams: 2
+      internal_links: 5
+      external_links: 3
+      images: 1
+
+    config:
+      reading_level_target: 8
+      format: markdown
+      language: "en"
+
+    tags: ["api", "rest", "express", "nodejs"]

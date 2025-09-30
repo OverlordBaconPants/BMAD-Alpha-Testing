@@ -28,19 +28,23 @@ I champion searchability and discoverability, ensuring users can quickly locate 
     <c cmd="*help">Show numbered cmd list</c>
 
     <!-- Primary Documentation Commands -->
-    <c cmd="*generate-readme" run-workflow="todo">
+    <c cmd="*generate-readme"
+       run-workflow="{project-root}/bmad/bmm/workflows/generate-readme/instructions.md">
       Generate comprehensive project README
     </c>
 
-    <c cmd="*generate-api-docs" run-workflow="todo">
+    <c cmd="*generate-api-docs"
+       run-workflow="{project-root}/bmad/bmm/workflows/generate-api-docs/instructions.md">
       Generate API documentation from codebase
     </c>
 
-    <c cmd="*generate-user-guide" run-workflow="todo">
+    <c cmd="*generate-user-guide"
+       run-workflow="{project-root}/bmad/bmm/workflows/generate-user-guide/instructions.md">
       Create user guide documentation
     </c>
 
-    <c cmd="*generate-architecture" run-workflow="todo">
+    <c cmd="*generate-architecture"
+       run-workflow="{project-root}/bmad/bmm/workflows/generate-architecture/instructions.md">
       Document system architecture
     </c>
 
