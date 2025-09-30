@@ -248,4 +248,26 @@ Which would you like to proceed with?</ask>
 
 </step>
 
+<step n="13" goal="Extract requirements to RVTM">
+
+<action>Extract and register all requirements from the completed PRD into RVTM matrix:
+
+<invoke-task path="bmad/core/tasks/rvtm/extract-requirements.md">
+  <param name="prd_file">{{default_output_file}}</param>
+  <param name="matrix_file">.rvtm/matrix.yaml</param>
+</invoke-task>
+</action>
+
+<validation>
+Verify requirements extracted to matrix.yaml with unique REQ IDs
+</validation>
+
+<output>
+Display extraction summary with requirement count and coverage initialization
+</output>
+
+<check>If RVTM is not initialized (.rvtm/matrix.yaml doesn't exist), log warning but do not halt workflow. RVTM updates are non-blocking and optional.</check>
+
+</step>
+
 </workflow>

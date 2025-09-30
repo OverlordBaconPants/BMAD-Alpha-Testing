@@ -51,6 +51,7 @@
     <action>Run the new tests to verify implementation correctness</action>
     <action>Run linting and code quality checks if configured</action>
     <action>Validate implementation meets ALL story acceptance criteria; if ACs include quantitative thresholds (e.g., test pass rate), ensure they are met before marking complete</action>
+    <action>Capture test results for RVTM update (save test runner output to temp file)</action>
     <check>If regression tests fail → STOP and fix before continuing</check>
     <check>If new tests fail → STOP and fix before continuing</check>
   </step>
@@ -61,6 +62,13 @@
     <action>Add completion notes to Dev Agent Record if significant changes were made (summarize intent, approach, and any follow-ups)</action>
     <action>Append a brief entry to Change Log describing the change</action>
     <action>Save the story file</action>
+    <action>Update RVTM with test results:
+
+<invoke-task path="bmad/core/tasks/rvtm/update-story-status.md">
+  <param name="test_results">[test-output-summary]</param>
+  <param name="matrix_file">.rvtm/matrix.yaml</param>
+</invoke-task>
+</action>
     <check>Determine if more incomplete tasks remain</check>
     <check>If more tasks remain → <goto step="1">Next task</goto></check>
     <check>If no tasks remain → <goto step="6">Completion</goto></check>
@@ -72,6 +80,19 @@
     <action>Confirm File List includes every changed file</action>
     <action>Execute story definition-of-done checklist, if the story includes one</action>
     <action>Update the story Status to: Ready for Review</action>
+    <action>Update RVTM story status to completed:
+
+<invoke-task path="bmad/core/tasks/rvtm/update-story-status.md">
+  <param name="story_file">{{story_path}}</param>
+  <param name="status">completed</param>
+  <param name="matrix_file">.rvtm/matrix.yaml</param>
+</invoke-task>
+
+This will:
+- Mark story as completed with timestamp
+- Update linked requirements to "implemented" status
+- Recalculate all coverage metrics
+</action>
     <check>If any task is incomplete → Return to step 1 to complete remaining work (Do NOT finish with partial progress)</check>
     <check>If regression failures exist → STOP and resolve before completing</check>
     <check>If File List is incomplete → Update it before completing</check>

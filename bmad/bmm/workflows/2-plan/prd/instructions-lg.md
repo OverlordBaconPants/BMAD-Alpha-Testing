@@ -264,4 +264,52 @@ Which would you like to proceed with?</ask>
 
 </step>
 
+<step n="13" goal="Extract requirements to RVTM">
+
+<action>Extract and register all requirements from the completed PRD into RVTM matrix:
+
+<invoke-task path="bmad/core/tasks/rvtm/extract-requirements.md">
+  <param name="prd_file">{{default_output_file}}</param>
+  <param name="matrix_file">.rvtm/matrix.yaml</param>
+</invoke-task>
+
+This will:
+- Parse PRD markdown for requirement statements
+- Generate unique REQ IDs (REQ001, REQ002, ...)
+- Create traceability entries in matrix.yaml
+- Initialize coverage tracking at 0%
+</action>
+
+<validation>
+Verify successful extraction:
+- .rvtm/matrix.yaml exists and is valid YAML
+- All requirements have unique REQ IDs
+- Each requirement references source section in PRD
+- Coverage metrics initialized
+</validation>
+
+<output>
+Display extraction summary:
+- Total requirements extracted
+- Requirement ID range (REQ001-REQ0XX)
+- Requirements grouped by PRD section
+
+Example output:
+```
+✅ RVTM: Extracted 15 requirements from PRD
+
+Requirements by section:
+  Core Features: 8 requirements (REQ001-REQ008)
+  User Management: 4 requirements (REQ009-REQ012)
+  Security: 3 requirements (REQ013-REQ015)
+
+Coverage: 0% (no implementations yet)
+Next: Create stories to implement these requirements
+```
+</output>
+
+<check>If RVTM is not initialized (.rvtm/matrix.yaml doesn't exist), log warning but do not halt workflow. RVTM updates are non-blocking and optional.</check>
+
+</step>
+
 </workflow>

@@ -1,0 +1,270 @@
+# RVTM Matrix YAML Schema
+# This defines the structure of .rvtm/matrix.yaml
+
+# Complete example showing all fields:
+example_matrix:
+  version: "1.0.0"
+  created: "2025-09-30T10:00:00Z"
+  lastModified: "2025-09-30T14:30:00Z"
+
+  requirements:
+    REQ-001:
+      id: REQ-001
+      text: "Users must be able to register with email and password"
+      type: functional  # functional | non-functional | security | performance | usability | reliability
+      status: verified  # draft | planned | implemented | verified
+      priority: high    # low | medium | high | critical
+      source_document: PRD.md
+      source_section: Functional Requirements
+      source_type: prd  # prd | epic | story | technical-spec
+      created_date: "2025-09-30T10:00:00Z"
+      modified_date: "2025-09-30T14:00:00Z"
+      verified_date: "2025-09-30T14:30:00Z"  # When all tests passed
+      tags:
+        - authentication
+        - user-management
+      notes: Optional additional context
+
+  stories:
+    STORY-1-1:
+      id: STORY-1-1
+      title: User Registration
+      description: "As a new user, I want to register for an account..."
+      epic_id: EPIC-1
+      story_number: 1
+      requirements:  # Array of requirement IDs this story implements
+        - REQ-001
+        - FR-001
+        - NFR-003
+      acceptance_criteria:
+        - Registration form displays email, password fields
+        - Email validation ensures proper format
+        - Password meets strength requirements
+      source_file: stories/story-1.1.md
+      implementation_status: completed  # planned | in_progress | completed | approved
+      created_date: "2025-09-30T10:30:00Z"
+      modified_date: "2025-09-30T14:00:00Z"
+      completion_notes: Implementation complete, all tests passing
+      tags:
+        - sprint-1
+        - authentication
+
+  tests:
+    TEST-REGISTRATION-SHOULD-DISPLAY-EMAIL-FIELD:
+      id: TEST-REGISTRATION-SHOULD-DISPLAY-EMAIL-FIELD
+      name: should display email input field
+      description: User Registration - should display email input field
+      type: acceptance  # unit | integration | acceptance | e2e | performance
+      test_file: tests/acceptance/registration.test.js
+      test_framework: jest  # jest | mocha | gherkin | pytest | generic
+      story_id: STORY-1-1
+      requirements:  # Array of requirement IDs this test verifies
+        - REQ-001
+        - FR-001
+      status: passed  # pending | running | passed | failed | skipped
+      last_run: "2025-09-30T14:15:00Z"
+      duration: 45  # milliseconds
+      error_message: null  # Error text if status is failed
+      created_date: "2025-09-30T11:00:00Z"
+      modified_date: "2025-09-30T14:15:00Z"
+      tags:
+        - ui-test
+        - registration
+
+  links:
+    - id: LINK-1696082400000-abc123
+      from_type: story  # story | test
+      from_id: STORY-1-1
+      to_type: requirement  # requirement
+      to_id: REQ-001
+      link_type: implements  # implements | verifies | depends_on
+      created_date: "2025-09-30T10:30:00Z"
+      metadata:
+        confidence: high
+        notes: Direct implementation
+
+    - id: LINK-1696082460000-def456
+      from_type: test
+      from_id: TEST-REGISTRATION-SHOULD-DISPLAY-EMAIL-FIELD
+      to_type: requirement
+      to_id: REQ-001
+      link_type: verifies
+      created_date: "2025-09-30T11:00:00Z"
+
+# ============================================================================
+# Minimal valid matrix (for new projects):
+# ============================================================================
+
+minimal_matrix:
+  version: "1.0.0"
+  created: "2025-09-30T10:00:00Z"
+  lastModified: "2025-09-30T10:00:00Z"
+  requirements: {}
+  stories: {}
+  tests: {}
+  links: []
+
+# ============================================================================
+# Field Descriptions:
+# ============================================================================
+
+field_definitions:
+  version:
+    description: RVTM schema version
+    type: string
+    format: semver
+    required: true
+
+  created:
+    description: When this RVTM was initialized
+    type: string
+    format: ISO 8601 datetime
+    required: true
+
+  lastModified:
+    description: Last update timestamp
+    type: string
+    format: ISO 8601 datetime
+    required: true
+
+  requirements:
+    description: Map of requirement ID to requirement object
+    type: object
+    keys: Requirement IDs (REQ-001, FR-001, etc.)
+    required: true
+
+  stories:
+    description: Map of story ID to story object
+    type: object
+    keys: Story IDs (STORY-1-1, STORY-2-3, etc.)
+    required: true
+
+  tests:
+    description: Map of test ID to test object
+    type: object
+    keys: Test IDs (TEST-...)
+    required: true
+
+  links:
+    description: Array of traceability links
+    type: array
+    items: Link objects
+    required: true
+
+# ============================================================================
+# Status Values:
+# ============================================================================
+
+status_values:
+  requirement_status:
+    - draft        # Requirement captured, not yet planned
+    - planned      # Included in implementation plan
+    - implemented  # Story implementing it is completed
+    - verified     # All tests verifying it have passed
+
+  story_status:
+    - planned      # Story created, not yet started
+    - in_progress  # Currently being implemented
+    - completed    # Implementation finished, ready for review
+    - approved     # Reviewed and approved
+
+  test_status:
+    - pending      # Test created, not yet run
+    - running      # Test currently executing
+    - passed       # Test executed successfully
+    - failed       # Test failed
+    - skipped      # Test was skipped
+
+# ============================================================================
+# Link Types:
+# ============================================================================
+
+link_types:
+  implements:
+    from: story
+    to: requirement
+    description: Story implements the requirement
+
+  verifies:
+    from: test
+    to: requirement
+    description: Test verifies the requirement
+
+  depends_on:
+    from: story | requirement
+    to: story | requirement
+    description: Item depends on another item
+
+# ============================================================================
+# Priority Values:
+# ============================================================================
+
+priority_values:
+  - low       # Nice to have
+  - medium    # Should have
+  - high      # Must have
+  - critical  # Blocker, must have immediately
+
+# ============================================================================
+# Type Values:
+# ============================================================================
+
+requirement_types:
+  - functional      # Functional requirement
+  - non-functional  # Non-functional requirement
+  - security        # Security requirement
+  - performance     # Performance requirement
+  - usability       # Usability requirement
+  - reliability     # Reliability requirement
+
+test_types:
+  - unit         # Unit test
+  - integration  # Integration test
+  - acceptance   # Acceptance/E2E test
+  - e2e          # End-to-end test
+  - performance  # Performance test
+
+# ============================================================================
+# Validation Rules:
+# ============================================================================
+
+validation_rules:
+  requirement:
+    required_fields:
+      - id
+      - text
+      - type
+      - status
+      - created_date
+    id_pattern: "^(REQ|FR|NFR|UC|STK)-\\d+$"
+
+  story:
+    required_fields:
+      - id
+      - title
+      - epic_id
+      - story_number
+      - requirements  # Array (can be empty if require_links=false)
+      - implementation_status
+      - created_date
+    id_pattern: "^STORY-\\d+-\\d+$"
+
+  test:
+    required_fields:
+      - id
+      - name
+      - type
+      - test_file
+      - status
+      - created_date
+    id_pattern: "^TEST-.+$"
+
+  link:
+    required_fields:
+      - id
+      - from_type
+      - from_id
+      - to_type
+      - to_id
+      - link_type
+      - created_date

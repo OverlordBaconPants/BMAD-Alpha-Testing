@@ -77,5 +77,44 @@
     <action>Report created/updated story path</action>
   </step>
 
+  <step n="9" goal="Update RVTM with story-requirement traceability">
+    <action>Link the created story to its implementing requirements in RVTM:
+
+<invoke-task path="bmad/core/tasks/rvtm/link-story-requirements.md">
+  <param name="story_file">{default_output_file}</param>
+  <param name="matrix_file">.rvtm/matrix.yaml</param>
+</invoke-task>
+
+This will:
+- Extract story ID and requirements from story metadata
+- Create bidirectional traceability links (story ↔ requirements)
+- Update requirement implementation status
+- Recalculate coverage metrics
+</action>
+
+    <validation>
+Verify story linked successfully:
+- Story registered in matrix.yaml stories section
+- All requirement IDs are valid (exist in requirements section)
+- Requirements now reference this story
+- Coverage percentage updated
+</validation>
+
+    <output>
+Display linking result:
+```
+✅ Story linked to RVTM
+
+Story: STORY{{epic_num}}{{story_num}} - {{story_title}}
+Requirements: {{req_ids}}
+
+Coverage update:
+- Requirements with implementations: X/Y (Z%)
+```
+</output>
+
+    <check>If RVTM is not initialized (.rvtm/matrix.yaml doesn't exist), log warning but do not halt workflow. RVTM updates are non-blocking and optional.</check>
+  </step>
+
 </workflow>
 ```

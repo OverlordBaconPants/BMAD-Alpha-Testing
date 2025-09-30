@@ -1,0 +1,343 @@
+<!-- Powered by BMAD-CORE™ -->
+# RVTM: Initialize RVTM Structure
+
+```xml
+<task id="bmad/core/tasks/rvtm/init-rvtm.md" name="Initialize RVTM">
+  <objective>Initialize RVTM directory structure and matrix file for a project</objective>
+  <inputs critical="true">
+    <input name="project_root" type="path" required="true" description="Root directory of the project" />
+    <input name="prd_file" type="path" required="false" description="Path to PRD if available" />
+  </inputs>
+  <outputs>
+    <output name="rvtm_dir" type="path" description="Created .rvtm directory" />
+    <output name="matrix_file" type="path" description="Created matrix.yaml file" />
+  </outputs>
+  <side_effects>
+    <effect>Creates .rvtm/ directory in project root</effect>
+    <effect>Creates matrix.yaml with initial structure</effect>
+    <effect>Creates .gitignore if needed</effect>
+  </side_effects>
+</task>
+```
+
+## Context
+
+This task initializes the RVTM (Requirements Verification Traceability Matrix) structure for a project. RVTM tracks requirements from PRD through implementation and testing.
+
+**When to Use:**
+- Starting a new BMAD project
+- Adding RVTM to an existing project
+- Resetting RVTM structure (destructive - will backup existing)
+
+## Instructions
+
+### Step 1: Validate Project Structure
+
+**Check that project_root exists:**
+```
+If project_root does not exist, ABORT with error:
+  "Project root does not exist: {project_root}"
+```
+
+**Determine project type:**
+```
+Look for indicators:
+- package.json → Node.js/JavaScript project
+- requirements.txt → Python project
+- Cargo.toml → Rust project
+- go.mod → Go project
+- pom.xml → Java project
+```
+
+### Step 2: Create .rvtm Directory
+
+**Create directory structure:**
+```
+{project_root}/.rvtm/
+  matrix.yaml           # Main RVTM matrix
+  README.md            # RVTM documentation
+  .gitignore           # Ignore temp files
+```
+
+**Check for existing .rvtm:**
+```
+If .rvtm/ already exists:
+  1. Create backup: .rvtm.backup.{timestamp}/
+  2. Log warning: "Existing RVTM backed up to .rvtm.backup.{timestamp}/"
+  3. Proceed with fresh initialization
+```
+
+### Step 3: Create matrix.yaml
+
+**Initialize with base structure:**
+```yaml
+version: "1.0.0"
+created: "{current_timestamp_ISO8601}"
+lastModified: "{current_timestamp_ISO8601}"
+project:
+  name: "{project_name_from_directory}"
+  type: "{detected_project_type}"
+  prd: "{prd_file_relative_path_if_provided}"
+
+requirements: {}
+stories: {}
+tests: {}
+coverage:
+  total_requirements: 0
+  requirements_with_stories: 0
+  requirements_with_tests: 0
+  stories_completed: 0
+  tests_passed: 0
+  coverage_percentage: 0.0
+```
+
+**Extract project name:**
+```
+Project name = basename of project_root
+Example: /workspace/my-app → "my-app"
+```
+
+**Store PRD path if provided:**
+```
+If prd_file provided:
+  Convert to relative path from project_root
+  Example: /workspace/my-app/docs/PRD.md → "docs/PRD.md"
+```
+
+### Step 4: Create README.md
+
+**Write RVTM documentation:**
+```markdown
+# Requirements Verification Traceability Matrix (RVTM)
+
+## Overview
+
+This directory contains the Requirements Verification Traceability Matrix (RVTM) for this project.
+RVTM provides end-to-end traceability from requirements through implementation to testing.
+
+## Structure
+
+- `matrix.yaml` - Main RVTM matrix tracking all requirements, stories, and tests
+- `README.md` - This documentation file
+
+## Matrix Schema
+
+### Requirements
+Each requirement extracted from the PRD:
+```yaml
+requirements:
+  REQ001:
+    id: "REQ001"
+    text: "User must be able to login with email"
+    source: "docs/PRD.md"
+    stories: ["STORY001", "STORY002"]
+    tests: ["test_login_email"]
+    status: "implemented"
+```
+
+### Stories
+Each story implementing requirements:
+```yaml
+stories:
+  STORY001:
+    id: "STORY001"
+    title: "Implement email login"
+    file: "stories/auth/login-email.md"
+    requirements: ["REQ001"]
+    status: "completed"
+    completedAt: "2025-09-30T10:00:00Z"
+```
+
+### Tests
+Each test verifying requirements:
+```yaml
+tests:
+  test_login_email:
+    id: "test_login_email"
+    name: "test_login_email"
+    file: "tests/auth/test_login.py"
+    requirements: ["REQ001"]
+    lastRun: "2025-09-30T10:00:00Z"
+    status: "passed"
+```
+
+## Usage
+
+RVTM is automatically updated by BMAD workflows:
+
+1. **Extract Requirements** - When PRD is created/updated
+2. **Link Stories** - When stories are created
+3. **Register Tests** - When tests are written
+4. **Update Status** - When stories complete or tests run
+
+## Manual Updates
+
+While RVTM is typically managed automatically, you can manually edit `matrix.yaml` if needed.
+Follow the schema structure and update the `lastModified` timestamp.
+
+## Coverage Report
+
+The `coverage` section provides real-time metrics:
+- Total requirements tracked
+- Requirements with implementations (stories)
+- Requirements with test coverage
+- Story completion rate
+- Test pass rate
+- Overall coverage percentage
+
+## Generated by BMAD-CORE™
+
+This RVTM structure follows BMAD Method principles for requirement traceability.
+```
+
+### Step 5: Create .gitignore
+
+**Add RVTM-specific ignore rules:**
+```
+# RVTM temporary files
+*.rvtm.tmp
+.rvtm.backup.*
+
+# Keep the matrix and docs
+!matrix.yaml
+!README.md
+```
+
+### Step 6: Extract Initial Requirements (Optional)
+
+**If prd_file was provided:**
+```xml
+<invoke-task path="bmad/core/tasks/rvtm/extract-requirements.md">
+  <param name="prd_file">{prd_file}</param>
+  <param name="matrix_file">{project_root}/.rvtm/matrix.yaml</param>
+</invoke-task>
+```
+
+### Step 7: Output Summary
+
+**Report initialization results:**
+```
+✅ RVTM initialized successfully
+
+Created:
+  📁 {project_root}/.rvtm/
+  📄 matrix.yaml (version 1.0.0)
+  📄 README.md
+  📄 .gitignore
+
+Project: {project_name}
+Type: {project_type}
+PRD: {prd_file_relative_path or "Not specified"}
+
+{If requirements extracted:}
+📊 Extracted {count} requirements from PRD
+
+Next steps:
+  1. Create stories and link to requirements
+  2. Write tests and register with RVTM
+  3. Track progress in matrix.yaml
+```
+
+## Error Handling
+
+### Project Root Does Not Exist
+```
+ERROR: Project root does not exist: {project_root}
+
+Please provide a valid project root directory.
+```
+
+### Permission Denied
+```
+ERROR: Cannot create .rvtm directory: Permission denied
+
+Check directory permissions for: {project_root}
+```
+
+### Invalid PRD Path
+```
+WARNING: PRD file not found: {prd_file}
+
+RVTM initialized without initial requirements.
+You can extract requirements later by running:
+  bmad/core/tasks/rvtm/extract-requirements.md
+```
+
+### Backup Creation Failed
+```
+WARNING: Could not backup existing .rvtm directory
+
+Existing .rvtm/ will be overwritten. Cancel if this is not intended.
+Continue? (y/n)
+```
+
+## Validation
+
+**Verify initialization:**
+```
+Check that all files exist:
+  ✓ {project_root}/.rvtm/matrix.yaml
+  ✓ {project_root}/.rvtm/README.md
+  ✓ {project_root}/.rvtm/.gitignore
+
+Verify matrix.yaml is valid YAML:
+  ✓ Parse matrix.yaml successfully
+  ✓ Contains all required fields: version, created, lastModified, requirements, stories, tests, coverage
+```
+
+## Examples
+
+### Example 1: Initialize new project
+```xml
+<invoke-task path="bmad/core/tasks/rvtm/init-rvtm.md">
+  <param name="project_root">/workspace/my-app</param>
+</invoke-task>
+```
+
+### Example 2: Initialize with existing PRD
+```xml
+<invoke-task path="bmad/core/tasks/rvtm/init-rvtm.md">
+  <param name="project_root">/workspace/my-app</param>
+  <param name="prd_file">/workspace/my-app/docs/PRD.md</param>
+</invoke-task>
+```
+
+### Example 3: Re-initialize (backup existing)
+```xml
+<invoke-task path="bmad/core/tasks/rvtm/init-rvtm.md">
+  <param name="project_root">/workspace/my-app</param>
+</invoke-task>
+<!-- Existing .rvtm backed up to .rvtm.backup.20250930T100000Z/ -->
+```
+
+## Integration with Workflows
+
+**This task is typically invoked:**
+
+1. **Project Setup Workflow** - Initialize RVTM structure
+2. **Planning Workflow** - Initialize with PRD reference
+3. **Manual Initialization** - User invokes directly
+
+**Used by workflows:**
+- `bmad/bmm/workflows/1-requirements/initialize-rvtm/*`
+- `bmad/bmm/workflows/2-plan/*` (optional RVTM setup)
+
+## Notes
+
+- **Idempotent:** Can be run multiple times (backs up existing)
+- **No Dependencies:** Only requires project_root
+- **Git-Friendly:** Creates appropriate .gitignore
+- **Self-Documenting:** Includes comprehensive README.md
+
+## Related Tasks
+
+- `extract-requirements.md` - Extract requirements from PRD
+- `link-story-requirements.md` - Link stories to requirements
+- `register-tests.md` - Register tests with requirements
+- `update-story-status.md` - Update implementation status
+
+---
+
+**Task ID:** `bmad/core/tasks/rvtm/init-rvtm.md`
+**Version:** 1.0.0
+**Last Updated:** 2025-09-30

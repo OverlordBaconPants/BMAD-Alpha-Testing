@@ -26,6 +26,10 @@
       <action>Produce artifacts described in deliverables</action>
       <action>Summarize failing tests and checklist items for the developer</action>
     </step>
+    <step n="4" title="Register Tests in RVTM">
+      <action>Register created test files in RVTM with requirement traceability: node {project-root}/bmad/core/lib/rvtm/rvtm-hooks/register-tests.js --test-file=[path-to-created-test] --story-file=[path-to-story] --epic-num=[epic] --story-num=[story] --project-root={project-root}</action>
+      <action>If RVTM is not initialized or hook fails, log warning but do not halt (RVTM updates are non-blocking)</action>
+    </step>
   </flow>
   <halt>
     <i>Apply halt_rules from the CSV row exactly</i>
